@@ -38,7 +38,7 @@ pipeline {
 
                     echo "Checking if app started..."
 
-                    def status = sh(script: 'curl --write-out "%{http_code}" --silent --output /dev/null http://localhost:8080', 
+                    def status = sh(script: 'curl --write-out "%{http_code}" --silent --output /dev/null http://localhost:9090', 
                                      returnStdout: true).trim()
 
                     if (status != "200") {
