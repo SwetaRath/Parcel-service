@@ -34,7 +34,7 @@ pipeline {
                     // Run app in background
                     sh 'nohup java -jar target/*.jar > app.log 2>&1 & echo $! > app.pid'
 
-                    sleep 30
+                    sleep 60
 
                     echo "Checking if app started..."
 
