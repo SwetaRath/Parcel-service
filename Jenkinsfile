@@ -1,5 +1,6 @@
 pipeline {
     agent { label 'Java' }
+    // agent any
 
     tools {
         jdk 'java17'
@@ -7,87 +8,65 @@ pipeline {
     }
 
     stages {
-        stage('Checkout Code') {
+
+        stage('Checkout') {
             steps {
-                checkout scm
+                git branch: 'feature-1', url: 'https://github.com/SwetaRath/Parcel-service.git'
             }
         }
 
-        stage('Build with Maven') {
+        stage('Build') {
             steps {
-                sh 'mvn clean package -DskipTests'
+                sh 'mvn clean package -DskipTests=false'
             }
-        }
-
-        stage('Archive Artifact') {
-            steps {
-                archiveArtifacts artifacts: 'target/*-SNAPSHOT.jar', fingerprint: true
-                echo "Artifact archived successfully."
-            }
-        }
-
-        stage('Run Application & Validate') {
+        } 
+       // simple-parcel-service-app-1.0-SNAPSHOT.jar
+        stage('Push the artifacts into JFrog Artifactory') {
             steps {
                 script {
-                    echo "Starting Spring Boot App..."
+                    // Define WAR file path
+                    def WAR_FILE = "${env.WORKSPACE}/target/simple-parcel-service-app-1.0-SNAPSHOT.jar"
 
-                    // Find the jar (adjust pattern if needed)
-                    def jarFile = sh(
-                        script: "ls target/*-SNAPSHOT.jar | head -n 1",
-                        returnStdout: true
-                    ).trim()
+                    // Current timestamp
+                    def currentDate = new java.text.SimpleDateFormat("yyyy-MM-dd_HH-mm").format(new Date())
 
-                    echo "Using JAR: ${jarFile}"
+                    // Path inside Artifactory
+                    def targetPath = "newsapp_snapshots/${currentDate}/"
 
-                    // Run app in background and store PID
+                    rtUpload(
+                        serverId: "jfrog",
+                        spec: """{
+                            "files": [
+                                {
+                                    "pattern": "${WAR_FILE}",
+                                    "target": "${targetPath}"
+                                }
+                            ]
+                        }"""
+                    )
+                }
+            }
+        }
+        
+
+        //stage('Archive Artifact') {
+          //  steps {
+        //        archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
+          //  }
+        //}
+
+        stage('Run Application') {
+            steps {
+                sh 'mvn spring-boot:run'
+
+                dir('/var/lib/jenkins/workspace/Parcel_service_feature-1/target') {
                     sh """
-                        nohup java -jar ${jarFile} > app.log 2>&1 &
-                        echo \$! > app.pid
+                        // nohup java -jar simple-parcel-service-app-1.0-SNAPSHOT.jar > app.log 2>&1 &
+                        // echo "Application started"
                     """
-
-                    // Wait a bit for startup
-                    sleep 60
-
-                    echo "Checking if app started..."
-
-                    // Don't fail on curl error, capture status instead
-                    def status = sh(
-                        script: 'curl -s -o /dev/null -w "%{http_code}" http://localhost:8080 || echo 200',
-                        returnStdout: true
-                    ).trim()
-
-                    if (status != "200") {
-                        echo "==== app.log (last 100 lines) ===="
-                        sh 'tail -n 100 app.log || true'
-                        error "App failed to start! HTTP Status: ${status}"
-                    } else {
-                        echo "App started successfully ✔"
-                    }
                 }
             }
         }
 
-        stage('Wait 5 minutes') {
-            steps {
-                echo 'Keeping app running for 5 minutes...'
-                sleep(time: 5, unit: 'MINUTES')
-            }
-        }
-
-        stage('Stop Application') {
-            steps {
-                script {
-                    echo "Stopping app..."
-                    sh 'kill $(cat app.pid) || true'
-                }
-            }
-        }
-    }
-
-    post {
-        always {
-            echo "Post cleanup..."
-            sh 'pkill -f "java -jar" || true'
-        }
     }
 }
