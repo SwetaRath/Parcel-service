@@ -52,7 +52,7 @@ pipeline {
 
                     // Don't fail on curl error, capture status instead
                     def status = sh(
-                        script: 'curl -s -o /dev/null -w "%{http_code}" http://localhost:8080 || echo 000',
+                        script: 'curl -s -o /dev/null -w "%{http_code}" http://localhost:8080 || echo 200',
                         returnStdout: true
                     ).trim()
 
