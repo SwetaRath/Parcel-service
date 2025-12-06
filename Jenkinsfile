@@ -1,5 +1,5 @@
 pipeline {
-    agent { label 'Java'}
+    agent { label 'Java' }
 
     tools {
         jdk 'java17'
@@ -31,17 +31,34 @@ pipeline {
                 script {
                     echo "Starting Spring Boot App..."
 
-                    // Run app in background
-                    sh 'nohup java -jar target/*.jar > app.log 2>&1 & echo $! > app.pid'
+                    // Find the jar (adjust pattern if needed)
+                    def jarFile = sh(
+                        script: "ls target/*-SNAPSHOT.jar | head -n 1",
+                        returnStdout: true
+                    ).trim()
 
+                    echo "Using JAR: ${jarFile}"
+
+                    // Run app in background and store PID
+                    sh """
+                        nohup java -jar ${jarFile} > app.log 2>&1 &
+                        echo \$! > app.pid
+                    """
+
+                    // Wait a bit for startup
                     sleep 60
 
                     echo "Checking if app started..."
 
-                    def status = sh(script: 'curl --write-out "%{http_code}" --silent --output /dev/null http://localhost:8080', 
-                                     returnStdout: true).trim()
+                    // Don't fail on curl error, capture status instead
+                    def status = sh(
+                        script: 'curl -s -o /dev/null -w "%{http_code}" http://localhost:8080 || echo 000',
+                        returnStdout: true
+                    ).trim()
 
                     if (status != "200") {
+                        echo "==== app.log (last 100 lines) ===="
+                        sh 'tail -n 100 app.log || true'
                         error "App failed to start! HTTP Status: ${status}"
                     } else {
                         echo "App started successfully ✔"
@@ -74,5 +91,3 @@ pipeline {
         }
     }
 }
-
-
