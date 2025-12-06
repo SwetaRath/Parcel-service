@@ -38,7 +38,7 @@ steps:
     echo "Waiting for the app to start..."
     sleep 15  # Allow some time for the Spring Boot app to fully start
     echo "Checking if the app is running..."
-    RESPONSE=$(curl --write-out "%{http_code}" --silent --output /dev/null http://localhost:9090)
+    RESPONSE=$(curl --write-out "%{http_code}" --silent --output /dev/null http://localhost:8080)
     if [ "$RESPONSE" -eq 200 ]; then
       echo "The app is running successfully!"
     else
